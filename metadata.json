@@ -1,0 +1,5 @@
+{
+  "name": "Breathe - 极简呼吸冥想",
+  "description": "一款移动端优先的呼吸练习 PWA，提供自然语音引导和流畅动画。",
+  "requestFramePermissions": []
+}
