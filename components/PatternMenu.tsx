@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BreathPattern, AppSettings } from '../types';
@@ -26,6 +26,10 @@ const PatternMenu: React.FC<Props> = ({
   onUpdateCustomPattern
 }) => {
   const [editingCustom, setEditingCustom] = useState(false);
+  
+  // 本地状态用于输入框显示，防止输入过程中父组件状态频繁更新导致的光标跳动
+  const [localDuration, setLocalDuration] = useState<string>(settings.durationMinutes.toString());
+  
   const [tempCustom, setTempCustom] = useState<BreathPattern>(customPattern || {
     id: 'custom',
     name: '自定义',
@@ -33,6 +37,11 @@ const PatternMenu: React.FC<Props> = ({
     inhale: 4, holdIn: 2, exhale: 4, holdOut: 2,
     color: '#ffffff', textColor: '#000000'
   });
+
+  // 当外部 settings 改变时（比如重置），同步到本地状态
+  useEffect(() => {
+    setLocalDuration(settings.durationMinutes.toString());
+  }, [settings.durationMinutes]);
 
   const handleCustomSave = () => {
     onUpdateCustomPattern(tempCustom);
@@ -46,6 +55,27 @@ const PatternMenu: React.FC<Props> = ({
         case 'inhale': return '吸';
         case 'exhale': return '呼';
         default: return '停';
+    }
+  };
+
+  // 处理输入变化
+  const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalDuration(e.target.value);
+  };
+
+  // 处理输入完成（失焦或回车）：验证数值并更新应用设置
+  const commitDuration = () => {
+    let val = parseInt(localDuration);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > 180) val = 180; // 最大 3 小时
+    
+    setLocalDuration(val.toString());
+    onUpdateSettings({ durationMinutes: val });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
     }
   };
 
@@ -65,7 +95,7 @@ const PatternMenu: React.FC<Props> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto"
+            className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-white/10 rounded-t-3xl z-50 max-h-[85vh] overflow-y-auto safe-area-bottom"
           >
             <div className="p-6 pb-12">
               <div className="flex justify-between items-center mb-6">
@@ -73,20 +103,36 @@ const PatternMenu: React.FC<Props> = ({
                 <button onClick={onClose} className="p-2 bg-white/5 rounded-full"><X size={20} /></button>
               </div>
 
-              {/* Duration Slider */}
-              <div className="mb-8 p-4 bg-white/5 rounded-xl">
-                <div className="flex justify-between mb-2">
-                  <span className="flex items-center gap-2 text-sm text-gray-300"><Clock size={16}/> 练习时长</span>
-                  <span className="font-mono">{settings.durationMinutes} 分钟</span>
+              {/* Duration Input (Number Field) */}
+              <div className="mb-8 p-4 bg-white/5 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-gray-300 font-medium">
+                  <Clock size={16} />
+                  <span>练习时长 (分钟)</span>
                 </div>
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="60" 
-                  value={settings.durationMinutes}
-                  onChange={(e) => onUpdateSettings({ durationMinutes: parseInt(e.target.value) })}
-                  className="w-full accent-white h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                />
+                
+                <div className="flex items-center bg-[#0f172a] rounded-lg border border-white/10 px-2 py-1 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all">
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="180" 
+                    value={localDuration}
+                    onChange={handleDurationChange}
+                    onBlur={commitDuration}
+                    onKeyDown={handleKeyDown}
+                    className="w-16 bg-transparent py-2 text-center text-xl font-mono text-white outline-none placeholder-gray-600"
+                  />
+                  <span className="text-gray-500 text-sm select-none pr-1">min</span>
+                  
+                  {/* Custom Spinner styles for Webkit/Firefox */}
+                  <style>{`
+                    input[type=number]::-webkit-inner-spin-button {
+                      opacity: 1;
+                      margin-left: 5px;
+                      height: 30px; 
+                      cursor: pointer;
+                    }
+                  `}</style>
+                </div>
               </div>
 
               <h3 className="text-sm uppercase tracking-wider text-gray-400 mb-4">呼吸模式</h3>
